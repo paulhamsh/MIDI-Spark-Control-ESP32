@@ -8,6 +8,26 @@
 #define NUM_BLKS 5
 #define DATA_SIZE 0x80
 
+#define STR_LEN 40
+typedef struct  {
+   int start_filler;
+   int preset_num;
+   char UUID[STR_LEN];
+   char Name[STR_LEN];
+   char Version[STR_LEN];
+   char Description[STR_LEN];
+   char Icon[STR_LEN];
+   float BPM;
+   struct SparkEffects {
+      char EffectName[STR_LEN];
+      bool OnOff;
+      int NumParameters;
+      float Parameters[8];
+   } effects[7];
+   uint8_t end_filler;
+} SparkPreset;
+
+
 class SparkClass
 {
    public:

@@ -1,6 +1,7 @@
 #include <M5Stack.h>
 #include <ArduinoJson.h>
 #include "SparkClass.h"
+#include "SparkPresets.h"
 #include <usbh_midi.h>
 #include "BluetoothSerial.h" // https://github.com/espressif/arduino-esp32
 
@@ -13,8 +14,7 @@ BluetoothSerial SerialBT;
 // MIDI vars
 USB Usb;
 USBH_MIDI MIDIUSBH(&Usb);
-uint8_t   UsbHSysEx[1026];
-uint8_t   *UsbHSysExPtr;
+
 
 // Spark vars
 char my_preset[]="{\"PresetNumber\": [0, 127], "
@@ -48,8 +48,9 @@ char my_preset[]="{\"PresetNumber\": [0, 127], "
                    "\"Parameters\": [0.285714, 0.408354, 0.289489, 0.388317, 0.582143, 0.65, 0.2]}], "
               "\"EndFiller\": 180}";    // no space in key name allowed
 
-SparkClass sc1, sc2;
+SparkClass sc1, sc2, sc_setpreset7f;
 
+// ------------------------------------------------------------------------------------------
 // Bluetooth routines
   
 void connect_to_spark() {
@@ -72,50 +73,127 @@ void connect_to_spark() {
       }
    }
 }
+
+void send_bt(SparkClass& spark_class)
+{
+   int i;
+
+   // if multiple blocks then send all but the last - the for loop should only run if last_block > 0
+   for (i = 0; i < spark_class.last_block; i++) 
+      SerialBT.write(spark_class.buf[i], BLK_SIZE);
+      
+   // and send the last one      
+   SerialBT.write(spark_class.buf[spark_class.last_block], spark_class.last_pos+1);
+}
+
+void send_receive_bt(SparkClass& spark_class)
+{
+   int i;
+   int rec;
+
+   // if multiple blocks then send all but the last - the for loop should only run if last_block > 0
+   for (i = 0; i < spark_class.last_block; i++) 
+      SerialBT.write(spark_class.buf[i], BLK_SIZE);
+
+   while (SerialBT.available())
+      rec = SerialBT.read();
+      
+   // and send the last one      
+   SerialBT.write(spark_class.buf[spark_class.last_block], spark_class.last_pos+1); 
+
+   while (SerialBT.available())
+      rec = SerialBT.read(); 
+}
+
+void send_ack(int seq, int cmd)
+{
+   byte ack[]{  0x01, 0xfe, 0x00, 0x00, 0x41, 0xff, 0x17, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                0xf0, 0x01, 0xff, 0x00, 0x04, 0xff, 0xf7};
+   ack[18] = seq;
+   ack[21] = cmd;            
+
+   SerialBT.write(ack, sizeof(ack));
+}
+
+void send_preset_request(int preset)
+{
+   byte req[]{0x01, 0xfe, 0x00, 0x00, 0x53, 0xfe, 0x3c, 0x00,
+              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+              0xf0, 0x01, 0x04, 0x00, 0x02, 0x01,
+              0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00,
+              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+              0x00, 0x00, 0x00, 0x00, 0x00, 0xf7};
+ 
+   req[24] = preset;
+   SerialBT.write(req, sizeof(req));      
+*/
+}
+
+// ------------------------------------------------------------------------------------------
+// MIDI routines
   
 void start_midi() {
-  if (Usb.Init() == -1) {
-    M5.Lcd.println("USB host init failed");
-    while (true); //halt
-  }
-  UsbHSysExPtr = UsbHSysEx;
+   if (Usb.Init() == -1) {
+      M5.Lcd.println("USB host init failed");
+      while (true); //halt
+   }
 }
 
 void midi_event() {
-  uint8_t recvBuf[MIDI_EVENT_PACKET_SIZE];
-  uint8_t rcode = 0;     //return code
-  uint16_t rcvd;
-  uint8_t readCount = 0;
-  rcode = MIDIUSBH.RecvData( &rcvd, recvBuf);
+   uint8_t receive_buf[MIDI_EVENT_PACKET_SIZE];
+   uint16_t received;
 
-  //data check
-  if (rcode != 0 || rcvd == 0) return;
-  if ( recvBuf[0] == 0 && recvBuf[1] == 0 && recvBuf[2] == 0 && recvBuf[3] == 0 ) {
-    return;
-  }
-  uint8_t *p = recvBuf;
-  while (readCount < rcvd)  {
-    if (*p == 0 && *(p + 1) == 0) break; //data end
+   uint8_t *p;
+   
+   int return_code = 0;     //return code
+   int count = 0;
 
-    uint8_t header = *p & 0x0F;
-    p++;
-    uint8_t chan = (*p & 0x0F) + 1;
-    int miditype = (*p & 0xF0);
+   int header, chan, miditype, dat1, dat2;
 
-    M5.Lcd.print(miditype, HEX);
-    M5.Lcd.print(" ");
-    M5.Lcd.print(p[1], HEX);
-    M5.Lcd.print(" ");
-    M5.Lcd.print(p[2], HEX);
-    M5.Lcd.println();
+   return_code = MIDIUSBH.RecvData(&received, receive_buf);
 
-    p += 3;
-    readCount += 4;
-  }
+   //check there is data
+   if (return_code != 0 || received == 0) return;
+   if (receive_buf[0] == 0 && receive_buf[1] == 0 && receive_buf[2] == 0 && receive_buf[3] == 0) return;
+   
+   while (count < received)  {
+      p = &receive_buf[count];
+      if (p[0] == 0 && p[1] == 0) break; //data end
+
+      header =   p[0] & 0x0f;
+      chan =     p[1] & 0x0f + 1;
+      miditype = p[1] & 0xf0;
+      dat1 =     p[2];
+      dat2 =     p[3];
+
+      count += 4;
+          
+      M5.Lcd.print(miditype, HEX);
+      M5.Lcd.print(" ");
+      M5.Lcd.print(dat1, HEX);
+      M5.Lcd.print(" ");
+      M5.Lcd.print(dat2, HEX);
+      M5.Lcd.println();
+
+      if (miditype == 0x90)
+         if (dat1 >= 40 && dat1 <= 43) {
+            sc2.change_hardware_preset(dat1 - 40);
+            SerialBT.write(sc2.buf[0], sc2.last_pos+1);
+         }
+      else if (miditype == 0xB0)
+         if (dat1 >= 21 && dat1 <= 25) {
+            //sc2.change_parameter ("Roland JC120", dat1 - 21, dat2);
+            //SerialBT.write(sc2.buf[0], sc2.last_pos+1);                       
+         }
+   }
 }
 
 
 
+// ------------------------------------------------------------------------------------------
 
 void setup() {
    M5.begin();
@@ -131,6 +209,9 @@ void setup() {
 
    start_midi();
    connect_to_spark();
+
+   // set up the change to 7f message for when we send a full preset
+   sc_setpreset7f.change_hardware_preset(0x7f);
 }
 
 void loop() {
@@ -139,13 +220,12 @@ void loop() {
    
    if (M5.BtnA.wasReleased()) {
       sc2.change_hardware_preset(0);
-      sc2.dump();
-      SerialBT.write(sc2.buf[0], sc2.last_pos+1);
+      send_bt(sc2);
   } 
    if (M5.BtnB.wasReleased()) {
-      sc2.change_hardware_preset(1);
-      sc2.dump();
-      SerialBT.write(sc2.buf[0], sc2.last_pos+1);
+      sc2.create_preset(my_preset);
+      send_receive_bt(sc2);
+      send_receive_bt(sc_setpreset7f);
    }
    if (M5.BtnC.wasReleased()) {
       M5.Lcd.clear(TFT_BLACK);
