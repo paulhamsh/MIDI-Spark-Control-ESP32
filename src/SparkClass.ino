@@ -27,7 +27,8 @@ void SparkClass::dump()
       Serial.println("------------------");
       Serial.print("Block ");
       Serial.println(b);
-      num = (b == last_block) ? last_pos : BLK_SIZE - 1;
+      // num = (b == last_block) ? last_pos : BLK_SIZE - 1;
+      num = buf[b][6]-1;
       for (p = 0; p <= num; p++) {
          if (buf[b][p] < 16) Serial.print("0"); 
          Serial.print(buf[b][p], HEX);
@@ -252,7 +253,7 @@ void SparkClass::turn_effect_onoff (char *pedal, char *onoff)
 
 
 
-void SparkClass::create_preset (const char *a_preset)
+void SparkClass::create_preset_json (const char *a_preset)
 {
    int cmd, sub_cmd;
    int i, siz;
@@ -321,5 +322,61 @@ void SparkClass::create_preset (const char *a_preset)
       }
    }
    add_byte (EndFiller);  
+   end_message();
+}
+
+void SparkClass::create_preset (SparkPreset &preset)
+{
+   int cmd, sub_cmd;
+   int i, j, siz;
+  
+   const char *Description;
+   const char *UUID;
+   const char *Name;
+   const char *Version;
+   const char *Icon;
+   float BPM;
+   float Param;
+   const char *OnOff;
+   const char *PedalName;
+   int EndFiller;
+
+   cmd =     0x01;
+   sub_cmd = 0x01;
+   start_message (cmd, sub_cmd, true);
+ 
+   add_byte (0x00);
+   add_byte (preset.preset_num);   
+   add_long_string (preset.UUID);
+   add_string (preset.Name);
+   add_string (preset.Version);
+   if (strlen (preset.Description) > 31)
+      add_long_string (preset.Description);
+   else
+      add_string (preset.Description);
+   add_string(preset.Icon);
+   add_float (preset.BPM);
+
+   
+   add_byte (byte(0x90 + 7));       // always 7 pedals
+
+   for (i=0; i<7; i++) {
+      
+      add_string (preset.effects[i].EffectName);
+      if (preset.effects[i].OnOff)
+         add_onoff("On");
+      else 
+         add_onoff ("Off");
+
+      siz = preset.effects[i].NumParameters;
+      add_byte ( 0x90 + siz); 
+      
+      for (j=0; j<siz; j++) {
+         add_byte (j);
+         add_byte (byte(0x91));
+         add_float (preset.effects[i].Parameters[j]);
+      }
+   }
+   add_byte (preset.end_filler);  
    end_message();
 }

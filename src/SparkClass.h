@@ -41,7 +41,8 @@ class SparkClass
       void change_effect_parameter (char *pedal, int param, float val);
       void turn_effect_onoff (char *pedal, char *onoff);
       void change_effect (char *pedal1,  char *pedal2);
-      void create_preset (const char *a_preset);
+      void create_preset_json (const char *a_preset);
+      void create_preset (SparkPreset& preset);
       void dump();   
 
       byte buf[NUM_BLKS][BLK_SIZE];
