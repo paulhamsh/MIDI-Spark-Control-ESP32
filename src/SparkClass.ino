@@ -9,14 +9,30 @@ SparkClass::SparkClass()
 
    data_pos = -1;
    multi = false;
-
-   memset(buf, 0, sizeof(buf));
 }
 
 SparkClass::~SparkClass()
 {
    last_pos = -1;
 }
+
+
+void SparkClass::as_hex()
+{
+   int b, p, num;
+
+   for (b = 0; b <= last_block; b++) {
+      Serial.println();
+      // num = (b == last_block) ? last_pos : BLK_SIZE - 1;
+      num = buf[b][6]-1;
+      for (p = 0; p <= num; p++) {
+         if (buf[b][p] < 16) Serial.print("0"); 
+         Serial.print(buf[b][p], HEX);
+      }
+   }
+   Serial.println();
+}
+
 
 void SparkClass::dump()
 {
@@ -38,6 +54,7 @@ void SparkClass::dump()
          if (p > 21 && (p-22) % 8 == 7) Serial.println();
       }
    }
+   Serial.println();
 }
 
 // Private functions
@@ -142,6 +159,8 @@ void SparkClass::start_message(int a_cmd, int a_sub_cmd, boolean a_multi)
    last_pos = 0;
    last_block = 0;
    data_pos = 0;
+
+   memset(buf, 0, sizeof(buf));
 }
 
 void SparkClass::end_message()
@@ -344,7 +363,7 @@ void SparkClass::create_preset (SparkPreset &preset)
    cmd =     0x01;
    sub_cmd = 0x01;
    start_message (cmd, sub_cmd, true);
- 
+
    add_byte (0x00);
    add_byte (preset.preset_num);   
    add_long_string (preset.UUID);

@@ -239,7 +239,7 @@ char spark_delays[][STR_LEN]{"DelayMono", "DelayEchoFilt", "VintageDelay", "Dela
                      
 char spark_reverbs[][STR_LEN]{"bias.reverb"};  
   
-char effects_current[7][STR_LEN]{/* Noisegate  */ "bias.noisegate", 
+char current_effects[7][STR_LEN]{/* Noisegate  */ "bias.noisegate", 
                                  /* Compressor */ "LA2AComp",
                                  /* Drive      */ "Booster",
                                  /* Amp        */ "RolandJC120", 

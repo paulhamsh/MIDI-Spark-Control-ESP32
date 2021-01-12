@@ -5,7 +5,7 @@
 #include <ArduinoJson.h>
 
 #define BLK_SIZE 0xad
-#define NUM_BLKS 5
+#define NUM_BLKS 8
 #define DATA_SIZE 0x80
 
 #define STR_LEN 40
@@ -44,6 +44,7 @@ class SparkClass
       void create_preset_json (const char *a_preset);
       void create_preset (SparkPreset& preset);
       void dump();   
+      void as_hex();
 
       byte buf[NUM_BLKS][BLK_SIZE];
       int  last_pos;    // index of last byte written in buf
