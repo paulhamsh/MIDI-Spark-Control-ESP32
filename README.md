@@ -1,6 +1,8 @@
 # MIDI-Spark-Control-ESP32
 
-Like MIDI-Spark-Control but for M5Stack Core (ESP32) (so C++) rather than Raspberry Pi (Python)
+Control your Positive Grid Spark amp with a MIDI controller, via a M5Stack Core with UBS host shield.
+
+A program for the M5Stack Core (an ESP 32 platform) written in C++
 
 
 
