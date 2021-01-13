@@ -10,5 +10,5 @@ With thanks to gdsports on github for the MIDI USB host examples  https://github
 
 ![Spark Setups](https://github.com/paulhamsh/MIDI-Spark-Control-ESP32/blob/main/diagrams/SetupM5StackCore.jpg)
 
-![Spark Setups](https://github.com/paulhamsh/MIDI-Spark-Control-ESP32/blob/main/diagrams/Examples.jpeg)
+![Spark Setups](https://github.com/paulhamsh/MIDI-Spark-Control-ESP32/blob/main/diagrams/Example.jpeg)
 
