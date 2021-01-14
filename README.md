@@ -8,7 +8,9 @@ A program for the M5Stack Core (an ESP 32 platform) written in C++
 
 ## API
 
-Sending to Spark
+Sending to Spark.
+
+There needs to be a instance of SparkClass.
 
 ### Set new hardware preset (same as pressing the buttons on the Spark amp)
 ```
@@ -31,7 +33,7 @@ Note: the effect named must be the actual effect in use on the amp otherwise it 
 ```
 void change_effect_parameter (char *pedal, int param, float val);
 
-Example: change_effect_parameter ("RolandJC120", 0, 0.56) 
+Example: change_effect_parameter ("RolandJC120", 0, 0.56);
 ```
 
 ### Turn an effect on or off
@@ -43,16 +45,35 @@ void turn_effect_onoff (char *pedal, char *onoff);
 Example: turn_effect_onoff ("DistortionTS9", "Off");
 ```
 
-```
-void change_effect (char *pedal1,  char *pedal2);
-```
+### Change an effect to a new one
+
+Note: the effect named must be the actual effect in use on the amp otherwise it will not work.
 
 ```
-void create_preset_json (const char *a_preset);
+void change_effect (char *pedal1,  char *pedal2);
+
+Example: change_effect ("ChorusAnalog",  "Phaser")
 ```
+
+### Create preset 
+
+The preset is a C++ structure containing all the data required for a full preset.
+
 
 ```
 void create_preset (SparkPreset& preset);
+
+Example: change_effect (preset);
+
+SparkPreset preset{0x0,0x7f,"D8757D67-98EA-4888-86E5-5F1FD96A30C3","Royal Crown","0.7","1-Clean","icon.png",120.000000,{ 
+  {"bias.noisegate", true, 3, {0.211230, 0.570997, 0.000000}}, 
+  {"Compressor", true, 2, {0.172004, 0.538197}}, 
+  {"DistortionTS9", false, 3, {0.703110, 0.278146, 0.689846}}, 
+  {"ADClean", true, 5, {0.677083, 0.501099, 0.382828, 0.585946, 0.812231}}, 
+  {"ChorusAnalog", true, 4, {0.519976, 0.402152, 0.240642, 0.740579}}, 
+  {"DelayMono", true, 5, {0.173729, 0.233051, 0.493579, 0.600000, 1.000000}}, 
+  {"bias.reverb", true, 7, {0.688801, 0.392857, 0.461138, 0.693705, 0.488235, 0.466387, 0.300000}} },0xa2 };
+
 ```
 
 With thanks to gdsports on github for the MIDI USB host examples  https://github.com/gdsports/MIDIDump
