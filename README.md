@@ -120,7 +120,8 @@ The preset format is:
   {"bias.reverb", true, 7, {0.688801, 0.392857, 0.461138, 0.693705, 0.488235, 0.466387, 0.300000}} },0xa2 };
 ```
 
-The preset format explanation is:
+The preset format explanation is:   
+
 | Description | Example |
 |-------------|---------|
 | Leave as 0 | 0x00 |
@@ -134,7 +135,10 @@ The preset format explanation is:
 | Effects - see below | |
 | Checksum - use anything | 0xa2 | 
 
-Effects are always in the order: Noisegate  (always "bias.noisegate", Compressor, Drive, Amp, Mod, Delay, Reverb (always "bias.reverb"}
+Effects are always in the order: 
+
+Noisegate  (always "bias.noisegate"), Compressor, Drive, Amp, Mod, Delay, Reverb (always "bias.reverb")
+
                                 
 | Description | Example |
 |-------------|---------|
