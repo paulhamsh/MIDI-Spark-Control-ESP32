@@ -26,7 +26,7 @@ send_receive_bt(sc);
 ```
 void change_hardware_preset (int preset_num); // 0-3
       
-Example: change_hardware_preset (2)
+Example: sc.change_hardware_preset (2)
 ```      
 
 ### Change an effect value to a new one (same as moving a know on the Spark amp)
@@ -43,7 +43,7 @@ Note: the effect named must be the actual effect in use on the amp otherwise it 
 ```
 void change_effect_parameter (char *pedal, int param, float val);
 
-Example: change_effect_parameter ("RolandJC120", 0, 0.56);
+Example: sc.change_effect_parameter ("RolandJC120", 0, 0.56);
 ```
 
 ### Turn an effect on or off
@@ -52,7 +52,7 @@ Note: the effect named must be the actual effect in use on the amp otherwise it 
 ```
 void turn_effect_onoff (char *pedal, char *onoff);
 
-Example: turn_effect_onoff ("DistortionTS9", "Off");
+Example: sc.turn_effect_onoff ("DistortionTS9", "Off");
 ```
 
 ### Change an effect to a new one
@@ -62,7 +62,7 @@ Note: the effect named must be the actual effect in use on the amp otherwise it 
 ```
 void change_effect (char *pedal1,  char *pedal2);
 
-Example: change_effect ("ChorusAnalog",  "Phaser")
+Example: sc.change_effect ("ChorusAnalog",  "Phaser")
 ```
 
 ### Create preset 
@@ -72,7 +72,7 @@ The preset is a C++ structure containing all the data required for a full preset
 ```
 void create_preset (SparkPreset& preset);
 
-Example: change_effect (preset);
+Example: sc.change_effect (preset);
 
 SparkPreset preset{0x0,0x7f,"D8757D67-98EA-4888-86E5-5F1FD96A30C3","Royal Crown","0.7","1-Clean","icon.png",120.000000,{ 
   {"bias.noisegate", true, 3, {0.211230, 0.570997, 0.000000}}, 
