@@ -46,7 +46,7 @@ send_receive_bt(sc);
 ```
 void change_hardware_preset (int preset_num); // 0-3
       
-Example: sc.change_hardware_preset (2)
+Example: sc.change_hardware_preset (2);
 ```      
 
 ### Change an effect value to a new one (same as moving a know on the Spark amp)
@@ -82,7 +82,7 @@ Note: the effect named must be the actual effect in use on the amp otherwise it 
 ```
 void change_effect (char *pedal1,  char *pedal2);
 
-Example: sc.change_effect ("ChorusAnalog",  "Phaser")
+Example: sc.change_effect ("ChorusAnalog",  "Phaser");
 ```
 
 ### Create preset 
