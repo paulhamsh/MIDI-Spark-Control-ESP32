@@ -86,6 +86,9 @@ SparkPreset preset{0x0,0x7f,"D8757D67-98EA-4888-86E5-5F1FD96A30C3","Royal Crown"
 
 ```
 
+## Acknowledgements
+
+All inspired by Justin Nelson and the marvellous #tinderbox https://github.com/jrnelson90/tinderboxpedal
 With thanks to gdsports on github for the MIDI USB host examples  https://github.com/gdsports/MIDIDump
 
 ![Spark Setups](https://github.com/paulhamsh/MIDI-Spark-Control-ESP32/blob/main/diagrams/SetupM5StackCore.jpg)
