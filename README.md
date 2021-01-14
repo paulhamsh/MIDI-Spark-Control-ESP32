@@ -20,6 +20,12 @@ This is pretty much every change the app can make.
 
 Whilst this is focussed on MIDI the underlying code and class can be triggered by GPIO with some code changes.
 
+## Pictures
+
+![Spark Setups](https://github.com/paulhamsh/MIDI-Spark-Control-ESP32/blob/main/diagrams/SetupM5StackCore.jpg)
+
+![Spark Setups](https://github.com/paulhamsh/MIDI-Spark-Control-ESP32/blob/main/diagrams/Example.jpeg)
+
 ## Installation instructions
 
 M5 Board installations as per M5 instructions - for Arduino: https://docs.m5stack.com/#/en/arduino/arduino_development    
@@ -139,7 +145,5 @@ Noisegate  (always "bias.noisegate"), Compressor, Drive, Amp, Mod, Delay, Reverb
 All inspired by Justin Nelson and the marvellous #tinderboxpedal https://github.com/jrnelson90/tinderboxpedal    
 With thanks to gdsports on github for the MIDI USB host examples  https://github.com/gdsports/MIDIDump    
 
-![Spark Setups](https://github.com/paulhamsh/MIDI-Spark-Control-ESP32/blob/main/diagrams/SetupM5StackCore.jpg)
 
-![Spark Setups](https://github.com/paulhamsh/MIDI-Spark-Control-ESP32/blob/main/diagrams/Example.jpeg)
 
