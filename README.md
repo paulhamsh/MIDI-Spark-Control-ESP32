@@ -63,7 +63,7 @@ Note: the effect named must be the actual effect in use on the amp otherwise it 
 ```
 void change_effect_parameter (char *pedal, int param, float val);
 
-Example: sc.change_effect_parameter ("RolandJC120", 0, 0.56);
+Example: sc.change_effect_parameter ("RolandJC120", 0, 0.56);  / Change gain to 0.56
 ```
 
 ### Turn an effect on or off
