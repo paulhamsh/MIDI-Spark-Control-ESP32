@@ -48,14 +48,20 @@ send_receive_bt(sc);
 
 ```
 
-### Set new hardware preset (same as pressing the buttons on the Spark amp)
+### Set new hardware preset   
+
+This has the same effect as pressing the four preset buttons on the amp    
+
 ```
 void change_hardware_preset (int preset_num); // 0-3
       
 Example: sc.change_hardware_preset (2);
 ```      
 
-### Change an effect value to a new one (for example, increase volume, change treble - same as moving a knob on the Spark amp)
+### Change an effect value  
+
+This has the same effect as moving the knobs on the amp - but you can access every parameter   
+
 The number for the parameter depends on the effect - for an amp they are:
 
 0 Gain
@@ -74,6 +80,8 @@ Example: sc.change_effect_parameter ("RolandJC120", 0, 0.56);  / Change gain to 
 
 ### Turn an effect on or off
 
+This can't be done physically on the amp at all!   
+
 Note: the effect named must be the actual effect in use on the amp otherwise it will not work.
 ```
 void turn_effect_onoff (char *pedal, char *onoff);
@@ -83,6 +91,8 @@ Example: sc.turn_effect_onoff ("DistortionTS9", "Off");
 
 ### Change an effect to a new one
 
+The amp only allows amp models to be changed with the first knob   
+
 Note: the effect named must be the actual effect in use on the amp otherwise it will not work.
 
 ```
@@ -91,7 +101,7 @@ void change_effect (char *pedal1,  char *pedal2);
 Example: sc.change_effect ("ChorusAnalog",  "Phaser");
 ```
 
-### Create preset 
+### Send a new preset
 
 The preset is a C++ structure containing all the data required for a full preset.
 
