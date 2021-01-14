@@ -121,8 +121,8 @@ The preset format is:
 ```
 
 The preset format explanation is:
-
-|-----|------|
+| Description | Example |
+|-------------|---------|
 | Leave as 0 | 0x00 |
 | Preset number - use 0x7f | 0x7f |
 | UUID for preset - used an existing one | "D8757D67-98EA-4888-86E5-5F1FD96A30C3" |
@@ -136,8 +136,8 @@ The preset format explanation is:
 
 Effects are always in the order: Noisegate  (always "bias.noisegate", Compressor, Drive, Amp, Mod, Delay, Reverb (always "bias.reverb"}
                                 
-                                 
-|-----|------|
+| Description | Example |
+|-------------|---------|
 | Name - use a effect name from the list in SparkPresets.h | "Compressor" |
 | On / off - true is on | true |
 | Number of parameters - needs to be the same as that effect has, can be discovered from other presets in SparkPresets.h | 2 |
