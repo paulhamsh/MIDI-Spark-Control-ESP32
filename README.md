@@ -20,9 +20,9 @@ Whilst this is focussed on MIDI the underlying code and class can be triggered b
 
 ## Installation instructions
 
-M5 Board installations as per M5 instructions - for Arduino: https://docs.m5stack.com/#/en/arduino/arduino_development
-USB Host: https://github.com/felis/USB_Host_Shield_2.0
-Use the latest version of the USB Host Shield library - earlier ones seem not to work with some MIDI devices (Novation Launchkey 25 as an example)
+M5 Board installations as per M5 instructions - for Arduino: https://docs.m5stack.com/#/en/arduino/arduino_development    
+USB Host: https://github.com/felis/USB_Host_Shield_2.0    
+Use the latest version of the USB Host Shield library - earlier ones seem not to work with some MIDI devices (Novation Launchkey 25 as an example)    
 
 ## API
 
@@ -151,8 +151,8 @@ Noisegate  (always "bias.noisegate"), Compressor, Drive, Amp, Mod, Delay, Reverb
 
 ## Acknowledgements
 
-All inspired by Justin Nelson and the marvellous #tinderboxpedal https://github.com/jrnelson90/tinderboxpedal
-With thanks to gdsports on github for the MIDI USB host examples  https://github.com/gdsports/MIDIDump
+All inspired by Justin Nelson and the marvellous #tinderboxpedal https://github.com/jrnelson90/tinderboxpedal    
+With thanks to gdsports on github for the MIDI USB host examples  https://github.com/gdsports/MIDIDump    
 
 ![Spark Setups](https://github.com/paulhamsh/MIDI-Spark-Control-ESP32/blob/main/diagrams/SetupM5StackCore.jpg)
 
