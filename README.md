@@ -16,6 +16,8 @@ On the Spark amp it can:
 - turn an effect on or off
 - change the value of a parameter (eg gain / treble for an amp)
 
+This is pretty much every change the app can make.   
+
 Whilst this is focussed on MIDI the underlying code and class can be triggered by GPIO with some code changes.
 
 ## Installation instructions
