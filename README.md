@@ -11,6 +11,16 @@ A program for the M5Stack Core (an ESP 32 platform) written in C++
 Sending to Spark.
 
 There needs to be a instance of SparkClass.
+Then we create a message and send it to the Spark;
+
+```
+Example:
+
+SparkClass sc;
+sc.change_hardware_preset(2); 
+send_receive_bt(sc);
+
+```
 
 ### Set new hardware preset (same as pressing the buttons on the Spark amp)
 ```
