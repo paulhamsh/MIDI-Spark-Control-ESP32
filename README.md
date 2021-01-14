@@ -49,7 +49,7 @@ void change_hardware_preset (int preset_num); // 0-3
 Example: sc.change_hardware_preset (2);
 ```      
 
-### Change an effect value to a new one (same as moving a know on the Spark amp)
+### Change an effect value to a new one (for example, increase volume, change same as moving a knob on the Spark amp)
 The number for the parameter depends on the effect - for an amp they are:
 
 0 Gain
