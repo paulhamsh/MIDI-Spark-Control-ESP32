@@ -5,7 +5,7 @@
 #include <ArduinoJson.h>
 
 #define BLK_SIZE 0xad
-#define NUM_BLKS 8
+#define NUM_BLKS 15
 #define DATA_SIZE 0x80
 
 #define STR_LEN 40
@@ -43,6 +43,10 @@ class SparkClass
       void change_effect (char *pedal1,  char *pedal2);
       void create_preset_json (const char *a_preset);
       void create_preset (SparkPreset& preset);
+      
+      void get_data();
+      void parse_data();
+
       void dump();   
       void as_hex();
 
@@ -57,13 +61,19 @@ class SparkClass
       void add_string(const char *str);
       void add_float(float flt);
       void add_onoff(const char *onoff);
-    
+
+      bool read_string(char *str);
+      bool read_prefixed_string(char *str);
+      bool read_onoff();
+      float read_float();
+      byte read_byte();
+      
+      void get_block(int block);
+          
       int  data_pos;    // index of the raw data - ignores the 7bit expansion in the data block
-    
       boolean multi;
       int cmd;
       int sub_cmd;
-
 };
 
 #endif

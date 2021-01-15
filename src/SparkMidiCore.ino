@@ -156,117 +156,7 @@ void send_preset_request(int preset)
    SerialBT.write(req, sizeof(req));      
 }
 
-// Functions to read a whole block from the Spark
-// 
-// Store in the SparkClass buffer to save data copying
 
-
-void get_block(SparkClass& sc, int block)
-{
-   int r1, r2;
-   bool started;
-   int i, len; 
-
-   // look for the 0x01fe start signature
-   
-   started = false;
-   r1 = SerialBT.read();
-   while (!started) {
-      r2 = SerialBT.read();
-      if (r1==0x01 && r2 == 0xfe)
-         started = true;
-      else
-         r1 = r2;
-   };
-
-   sc.buf[block][0]=r1;
-   sc.buf[block][1]=r2;
-   // we have found the start signature so read up until the length byte
-   for (i=2; i<7; i++)
-      sc.buf[block][i] = SerialBT.read();
-
-   len = sc.buf[block][6];
-   if (len > BLK_SIZE) {
-      Serial.print(len, HEX);
-      Serial.println(" is too big for a block, so halting");
-      while (true);
-   };
-      
-   for (i=7; i<len; i++)
-      sc.buf[block][i] = SerialBT.read();
-
-  sc.last_block = 0;
-  sc.last_pos = i-1;
-}
-  
-
-void get_data(SparkClass& sc)
-{
-
-   int block;
-   bool is_last_block;
-
-   int blk_len; 
-   int num_chunks, this_chunk;
-   int seq, cmd, sub_cmd;
-   int directn;
-
-   int pos;
-
-   block = 0;
-   is_last_block = false;
-
-   while (!is_last_block) {
-      get_block(sc, block);
-      blk_len = sc.buf[block][6];
-      directn = sc.buf[block][4]; // use the 0x53 or the 0x41 and ignore the second byte
-      seq     = sc.buf[block][18];
-      cmd     = sc.buf[block][20];
-      sub_cmd = sc.buf[block][21];
-
- 
-      if (directn == 0x53 && cmd == 0x01 && sub_cmd != 0x04)
-          // the app sent a message that needs a response
-          send_ack(seq, cmd);
-            
-      //now we need to see if this is the last block
-
-      // if the block length is less than the max size then
-      // definitely last block
-      // could be a full block and still last one
-      // but to be full surely means it is a multi-block as
-      // other messages are always small
-      // so need to check the chunk counts - in different places
-      // depending on whether    
-
-      if  (directn == 0x53) 
-         if (blk_len < 0xad)
-            is_last_block = true;
-         else {
-            // this is sent to Spark so will have a chunk header at top
-            num_chunks = sc.buf[block][23];
-            this_chunk = sc.buf[block][24];
-            if (this_chunk + 1 == num_chunks)
-               is_last_block = true;
-         }
-      if (directn == 0x41) 
-         if (blk_len < 0x6a)
-            is_last_block = true;
-         else {
-            // this is from Spark so chunk header could be anywhere
-            // so search from the end
-            // there must be one within the block and it is outside the 8bit byte so the search is ok
-
-            for (pos = 0x6a-2; pos >= 22 && !(sc.buf[block][pos] == 0xf0 && sc.buf[block][pos+1] == 0x01); pos--);
-            num_chunks = sc.buf[block][pos+7];
-            this_chunk = sc.buf[block][pos+8];
-            if (this_chunk + 1 == num_chunks)
-               is_last_block = true;
-         }
-      sc.last_block = block;
-      block++;
-   }
-}
 
 /* No longer needed as async receive
  *  
@@ -281,13 +171,13 @@ void send_receive_bt2(SparkClass& spark_class)
    for (i = 0; i < spark_class.last_block; i++) {
       SerialBT.write(spark_class.buf[i], BLK_SIZE);
       // read the ACK
-      get_data(scr);
+      scr.get_data();
    }
       
    // and send the last one      
    SerialBT.write(spark_class.buf[spark_class.last_block], spark_class.last_pos+1); 
    // read the ACK
-   get_data(scr);
+   scr.get_data();
 }
 
 void send_receive_bt(SparkClass& spark_class)
@@ -551,11 +441,9 @@ void loop() {
 
    }
    if (M5.BtnC.wasReleased()) {
-      display_str("Fuzzy Jam", OUT);
-      
-      sc3.create_preset(preset17);
-      send_receive_bt(sc3);
-      send_receive_bt(sc_setpreset7f);
+      display_str("Request preset 0", OUT);
+
+      send_preset_request(0);
    }  
 
    if (MIDIUSBH) {
@@ -563,7 +451,9 @@ void loop() {
    }
    
    if (SerialBT.available()) {
-      get_data(scr);
+      scr.get_data();
+      scr.parse_data();
+      scr.dump();
 
       // Not an ACK
 //      if (!(scr.buf[0][20]==0x04 && scr.buf[0][6] == 23)) {

@@ -150,6 +150,10 @@ void SparkClass::add_onoff (const char *onoff)
 
 // Public functions
 
+// ----------------------------------------------------
+//  Routines to write to the Spark
+//
+
 void SparkClass::start_message(int a_cmd, int a_sub_cmd, boolean a_multi)
 {
    cmd = a_cmd;
@@ -398,4 +402,265 @@ void SparkClass::create_preset (SparkPreset &preset)
    }
    add_byte (preset.end_filler);  
    end_message();
+}
+
+// ----------------------------------------------------
+//  Routines to read from the Spark
+//
+
+
+
+// Functions to read a whole block from the Spark
+// 
+// Store in the SparkClass buffer to save data copying
+
+int read_bt() {
+  while (!SerialBT.available()) delay(10);
+  return SerialBT.read();
+}
+
+void SparkClass::get_block(int block)
+{
+   int r1, r2;
+   bool started;
+   int i, len; 
+
+   // look for the 0x01fe start signature
+   
+   started = false;
+   r1 = read_bt();
+   while (!started) {
+      r2 = read_bt();
+      if (r1==0x01 && r2 == 0xfe)
+         started = true;
+      else
+         r1 = r2;
+   };
+
+   buf[block][0]=r1;
+   buf[block][1]=r2;
+   // we have found the start signature so read up until the length byte
+   for (i=2; i<7; i++)
+      buf[block][i] = read_bt();
+
+   len = buf[block][6];
+   if (len > BLK_SIZE) {
+      Serial.print(len, HEX);
+      Serial.println(" is too big for a block, so halting");
+      while (true);
+   };
+      
+   for (i=7; i<len; i++)
+      buf[block][i] = read_bt();
+
+  last_block = 0;
+  last_pos = i-1;
+}
+  
+
+void SparkClass::get_data()
+{
+
+   int block;
+   bool is_last_block;
+
+   int blk_len; 
+   int num_chunks, this_chunk;
+   int seq, cmd, sub_cmd;
+   int directn;
+
+   int pos;
+
+   block = 0;
+   is_last_block = false;
+
+   while (!is_last_block) {
+      get_block(block);
+      blk_len = buf[block][6];
+      directn = buf[block][4]; // use the 0x53 or the 0x41 and ignore the second byte
+      seq     = buf[block][18];
+      cmd     = buf[block][20];
+      sub_cmd = buf[block][21];
+
+ 
+      if (directn == 0x53 && cmd == 0x01 && sub_cmd != 0x04)
+          // the app sent a message that needs a response
+          send_ack(seq, cmd);
+            
+      //now we need to see if this is the last block
+
+      // if the block length is less than the max size then
+      // definitely last block
+      // could be a full block and still last one
+      // but to be full surely means it is a multi-block as
+      // other messages are always small
+      // so need to check the chunk counts - in different places
+      // depending on whether    
+
+      if  (directn == 0x53) 
+         if (blk_len < 0xad)
+            is_last_block = true;
+         else {
+            // this is sent to Spark so will have a chunk header at top
+            num_chunks = buf[block][23];
+            this_chunk = buf[block][24];
+            if (this_chunk + 1 == num_chunks)
+               is_last_block = true;
+         }
+      if (directn == 0x41) 
+         if (blk_len < 0x6a)
+            is_last_block = true;
+         else {
+            // this is from Spark so chunk header could be anywhere
+            // so search from the end
+            // there must be one within the block and it is outside the 8bit byte so the search is ok
+
+            for (pos = 0x6a-2; pos >= 22 && !(buf[block][pos] == 0xf0 && buf[block][pos+1] == 0x01); pos--);
+            num_chunks = buf[block][pos+7];
+            this_chunk = buf[block][pos+8];
+            if (this_chunk + 1 == num_chunks)
+               is_last_block = true;
+         }
+      last_block = block;
+      block++;
+   }
+   Serial.println("GOT DATA");
+   
+}
+
+#define BLK(x) (int((x)/90))
+#define BLK_POS(x) (16 + (x)%90)
+
+void SparkClass::parse_data() {
+   int pos, end_pos, start_pos, start_blk, blk, blk_size, blk_pos, num, num_blks, chunk_len;
+   int cmd, sub_cmd;
+   bool finished;
+   char a_str[50];
+      
+   start_pos = 0;
+   pos = 0;
+   finished = false;
+
+   while (!finished){
+      cmd = buf[BLK(pos+4)][BLK_POS(pos+4)];
+      sub_cmd = buf[BLK(pos+5)][BLK_POS(pos+5)];
+
+   
+      if (cmd == 0x03 && sub_cmd == 0x01) {
+         // multi-block has internal format
+         Serial.print("Got a multi-chunk of size ");
+         num = buf[BLK(pos+7)][BLK_POS(pos+7)];
+         Serial.println (num);
+      
+         pos += 39 * (num-1);
+         blk = BLK(pos);
+
+         blk_size = buf[blk][6];
+      
+         chunk_len = buf[BLK(pos+6+3)][BLK_POS(pos+6+3)];
+         end_pos = pos + 11 + int ((chunk_len+2)/7) + chunk_len;
+      }
+      else {
+       // search for the 0xf7
+         pos = start_pos+6;
+
+         while (buf[BLK(pos)][BLK_POS(pos)] != 0xf7) pos++;
+         end_pos = pos;
+      }
+      snprintf(a_str,48,"Cmd %d Sub-cmd %d  Start %d  End %d", cmd, sub_cmd, start_pos, end_pos);
+      Serial.println(a_str); 
+      finished = true;
+      Serial.println(buf[BLK(end_pos)][6]);
+      Serial.println(BLK_POS(end_pos));
+      if (buf[BLK(end_pos)][6] -1  == BLK_POS(end_pos)) finished = true;
+   }
+}
+
+// Routines to interpret the data
+
+
+
+byte SparkClass::read_byte()
+{
+
+}
+
+bool SparkClass::read_string(char *str)
+{
+   int a, i, len;
+
+   a=read_byte() - 0xa0;
+   if (a == 0xd9)
+      len = read_byte();
+   else if (a > 0xa0)
+      len = a - 0xa0;
+   else
+      a=read_byte();
+      len = a - 0xa0;
+      
+   if (len < sizeof(str)-1) {
+      for (i=0; i<len; i++) {
+         a = read_byte();
+         str[i]=a;
+      }
+      str[i] = '\0';
+      return true;
+   }
+   else
+      return -1;
+}
+
+bool SparkClass::read_prefixed_string(char *str)
+{
+   int a, i, len;
+
+   a=read_byte(); 
+   a=read_byte()-0xa0;
+   
+
+   if (len < sizeof(str)-1) {
+      for (i=0; i<len; i++) {
+         a = read_byte();
+         str[i]=a;
+      }
+      str[i] = '\0';
+      return true;
+   }
+   else
+      return -1;
+}
+
+float SparkClass::read_float()
+{
+   union {
+      float val;
+      byte b[4];
+   } conv;   
+   int a, i;
+
+   a = read_byte();  // should be 0xca
+  
+   // Seems this creates the most significant byte in the last position, so for example
+   // 120.0 = 0x42F00000 is stored as 0000F042  
+   
+   for (i=3; i>=0; i--) {
+      a = read_byte();
+      conv.b[i] = a;
+   } 
+   return conv.val;
+}
+ 
+
+
+bool SparkClass::read_onoff()
+{
+   int a;
+   
+   a = read_byte();
+   if (a == 0xc3)
+      return true;
+   else if (a == 0xc2)
+      return false;
+   else
+      return -1;
 }
