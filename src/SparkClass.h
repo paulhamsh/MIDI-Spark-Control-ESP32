@@ -5,8 +5,10 @@
 #include <ArduinoJson.h>
 
 #define BLK_SIZE 0xad
-#define NUM_BLKS 15
+#define NUM_BLKS 30
 #define DATA_SIZE 0x80
+#define IN_DATA_SIZE 28
+#define MAX_MESSAGES 50
 
 #define STR_LEN 40
 typedef struct  {
@@ -27,13 +29,21 @@ typedef struct  {
    uint8_t end_filler;
 } SparkPreset;
 
+typedef struct {
+  int cmd;
+  int sub_cmd;
+  int start_pos;
+  int end_pos;
+} MsgEntry;
+
 
 class SparkClass
 {
    public:
       SparkClass();
       ~SparkClass();
-    
+      
+      //sending to Spark
       void start_message(int a_cmd, int a_sub_cmd, boolean a_multi);
       void end_message();
 
@@ -44,15 +54,28 @@ class SparkClass
       void create_preset_json (const char *a_preset);
       void create_preset (SparkPreset& preset);
       
+      // incoming from Spark      
       void get_data();
       void parse_data();
 
+      void get_effect_parameter (int index, char *pedal, int *param, float *val);
+      void get_effect_change(int index, char *pedal1, char *pedal2);
+      void get_preset(int index, SparkPreset *preset);
+      void start_reading(int start, bool a_multi);
+
+      // general
       void dump();   
       void as_hex();
 
+      // public variables
       byte buf[NUM_BLKS][BLK_SIZE];
+
       int  last_pos;    // index of last byte written in buf
       int  last_block;  // index of last block being used
+
+      MsgEntry messages[MAX_MESSAGES];
+      int num_messages;
+
             
    private:
       void add_byte(byte b);
@@ -70,10 +93,12 @@ class SparkClass
       
       void get_block(int block);
           
-      int  data_pos;    // index of the raw data - ignores the 7bit expansion in the data block
+      int  data_pos;    // logical index of the actual data - ignores the 7bit expansion in the data block
+      int chunk_offset;
       boolean multi;
       int cmd;
       int sub_cmd;
+      
 };
 
 #endif

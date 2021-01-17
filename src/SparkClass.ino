@@ -475,6 +475,11 @@ void SparkClass::get_data()
    is_last_block = false;
 
    while (!is_last_block) {
+      if (block >= NUM_BLKS) {
+         Serial.print(block);
+         Serial.println(" BLOCKS SO FAR - THIS DATA IS TOO BIG FOR MY NUM_BLKS");
+         break;
+      }
       get_block(block);
       blk_len = buf[block][6];
       directn = buf[block][4]; // use the 0x53 or the 0x41 and ignore the second byte
@@ -524,41 +529,38 @@ void SparkClass::get_data()
       last_block = block;
       block++;
    }
-   Serial.println("GOT DATA");
-   
 }
 
 #define BLK(x) (int((x)/90))
 #define BLK_POS(x) (16 + (x)%90)
 
 void SparkClass::parse_data() {
-   int pos, end_pos, start_pos, start_blk, blk, blk_size, blk_pos, num, num_blks, chunk_len;
+   int pos, start_pos, end_pos, blk_pos, num, chunk_len;
    int cmd, sub_cmd;
    bool finished;
    char a_str[50];
+
+   num_messages=0;
       
    start_pos = 0;
-   pos = 0;
    finished = false;
 
    while (!finished){
+      pos = start_pos;
       cmd = buf[BLK(pos+4)][BLK_POS(pos+4)];
       sub_cmd = buf[BLK(pos+5)][BLK_POS(pos+5)];
 
    
       if (cmd == 0x03 && sub_cmd == 0x01) {
          // multi-block has internal format
-         Serial.print("Got a multi-chunk of size ");
          num = buf[BLK(pos+7)][BLK_POS(pos+7)];
-         Serial.println (num);
       
          pos += 39 * (num-1);
-         blk = BLK(pos);
-
-         blk_size = buf[blk][6];
+//         blk = BLK(pos);
+//         blk_size = buf[blk][6];
       
          chunk_len = buf[BLK(pos+6+3)][BLK_POS(pos+6+3)];
-         end_pos = pos + 11 + int ((chunk_len+2)/7) + chunk_len;
+         end_pos = pos + 10 + int ((chunk_len+2)/7) + chunk_len;
       }
       else {
        // search for the 0xf7
@@ -567,38 +569,79 @@ void SparkClass::parse_data() {
          while (buf[BLK(pos)][BLK_POS(pos)] != 0xf7) pos++;
          end_pos = pos;
       }
-      snprintf(a_str,48,"Cmd %d Sub-cmd %d  Start %d  End %d", cmd, sub_cmd, start_pos, end_pos);
-      Serial.println(a_str); 
-      finished = true;
-      Serial.println(buf[BLK(end_pos)][6]);
-      Serial.println(BLK_POS(end_pos));
+      messages[num_messages].cmd = cmd;
+      messages[num_messages].sub_cmd = sub_cmd;
+      messages[num_messages].start_pos = start_pos;
+      messages[num_messages].end_pos = end_pos;             
+      num_messages++;
+      
       if (buf[BLK(end_pos)][6] -1  == BLK_POS(end_pos)) finished = true;
+      start_pos = end_pos+1;
    }
 }
 
 // Routines to interpret the data
 
-
+void SparkClass::start_reading(int start, bool a_multi)
+{
+   scr.chunk_offset = start;
+   data_pos = 0;
+   multi = a_multi;
+}
 
 byte SparkClass::read_byte()
 {
 
-}
+   int blk, multi_bytes, temp_pos, slice_pos, byte_pos, bit_pos, pos, chunk, chunk_data_size;
+   int bits, dat;
+   
+   chunk_data_size = multi ? 25: 1000; // kludge until I refactor all of this
+   chunk = int(data_pos / chunk_data_size);
+   multi_bytes = multi ? 3 : 0;
+      
+   // work out where to place the data byte and where the 8th bit should go
+   temp_pos = (data_pos % chunk_data_size) + multi_bytes;
+   slice_pos = 8 * int (temp_pos / 7);
+   byte_pos = temp_pos % 7;
+   bit_pos = scr.chunk_offset + chunk*39 + slice_pos + 6;
+   pos = scr.chunk_offset + chunk*39 + byte_pos + slice_pos + 7;
+      
+   
+   bits = buf[BLK(bit_pos)][BLK_POS(bit_pos)];
+   dat = buf[BLK(pos)][BLK_POS(pos)];
+   
+   if (bits &  (1<<byte_pos))
+      dat |= 0x80;
+
+/*   
+   Serial.print(pos);
+   Serial.print(" ");
+   Serial.print(bit_pos);
+   Serial.print(" ");
+   Serial.print(dat, HEX);
+   Serial.print(" ");
+   Serial.println(bits, BIN);  
+*/   
+   data_pos++;
+   return dat;
+}   
+   
 
 bool SparkClass::read_string(char *str)
 {
    int a, i, len;
 
-   a=read_byte() - 0xa0;
-   if (a == 0xd9)
+   a=read_byte();
+   if (a == 0xd9) 
       len = read_byte();
    else if (a > 0xa0)
       len = a - 0xa0;
-   else
+   else {
       a=read_byte();
       len = a - 0xa0;
-      
-   if (len < sizeof(str)-1) {
+   }
+
+   if (len < STR_LEN) {
       for (i=0; i<len; i++) {
          a = read_byte();
          str[i]=a;
@@ -615,10 +658,12 @@ bool SparkClass::read_prefixed_string(char *str)
    int a, i, len;
 
    a=read_byte(); 
-   a=read_byte()-0xa0;
+   a=read_byte();
+   
+   len = a-0xa0;
    
 
-   if (len < sizeof(str)-1) {
+   if (len < STR_LEN) {
       for (i=0; i<len; i++) {
          a = read_byte();
          str[i]=a;
@@ -659,8 +704,70 @@ bool SparkClass::read_onoff()
    a = read_byte();
    if (a == 0xc3)
       return true;
-   else if (a == 0xc2)
+   else // 0xc2
       return false;
-   else
-      return -1;
+}
+
+// The functions to get the messages
+
+
+void SparkClass::get_effect_parameter (int index, char *pedal, int *param, float *val)
+{
+   int i, start_p, end_p;
+   
+   start_p = messages[index].start_pos;
+   end_p = messages[index].end_pos;
+
+   start_reading(start_p, false);
+
+   read_string(pedal);
+   *param = read_byte();
+   *val = read_float();
+}
+
+void SparkClass::get_effect_change(int index, char *pedal1, char *pedal2)
+{
+   int i, start_p, end_p;
+   
+   start_p = messages[index].start_pos;
+   end_p = messages[index].end_pos;
+
+   start_reading(start_p, false);
+
+   read_string(pedal1);
+   read_string(pedal2);
+}
+
+void SparkClass::get_preset(int index, SparkPreset *preset)
+{
+   int i, j, start_p, end_p;
+   char a_str[STR_LEN];
+   float flt;
+   bool onoff;
+   int t;
+   
+   start_p = messages[index].start_pos;
+   end_p = messages[index].end_pos;
+
+   start_reading(start_p, true);   // the only multi-chunk message
+
+   read_byte();
+   preset->preset_num = read_byte();
+   read_string(preset->UUID); 
+   read_string(preset->Name);
+   read_string(preset->Version);
+   read_string(preset->Description);
+   read_string(preset->Icon);
+   preset->BPM = read_float();
+
+   for (j=0; j<7; j++) {
+      read_string(preset->effects[j].EffectName);
+      preset->effects[j].OnOff = read_onoff();   
+      preset->effects[j].NumParameters = read_byte()- 0x90;
+      for (i=0; i<preset->effects[j].NumParameters; i++) {
+         read_byte();
+         read_byte();
+         preset->effects[j].Parameters[i] = read_float();
+      }
+   }
 }

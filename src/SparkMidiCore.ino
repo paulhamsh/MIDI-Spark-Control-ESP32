@@ -31,6 +31,8 @@ USBH_MIDI MIDIUSBH(&Usb);
 SparkClass sc1, sc2, sc3, sc4, scr;
 SparkClass sc_setpreset7f;
 
+SparkPreset preset;
+
 
 // ------------------------------------------------------------------------------------------
 // Display routintes
@@ -400,6 +402,13 @@ void midi_event() {
 
 // ------------------------------------------------------------------------------------------
 
+int i, j, k;
+int param;
+float val;
+int cmd, sub_cmd;
+char a_str[STR_LEN];
+char b_str[STR_LEN];
+
 void setup() {
    M5.begin();
    M5.Power.begin();
@@ -419,31 +428,42 @@ void setup() {
 
    // set up the change to 7f message for when we send a full preset
    sc_setpreset7f.change_hardware_preset(0x7f);
+
+   k=0x7f;
  
 }
 
 void loop() {
    M5.update();
    Usb.Task();
-   
+      
    if (M5.BtnA.wasReleased()) {
       display_str("Hardware preset 0", OUT);
       sc2.change_hardware_preset(0);
       send_bt(sc2);
   } 
    if (M5.BtnB.wasReleased()) {
-
+      Serial.print("Requesting ");
+      Serial.println(k, HEX);
+      send_preset_request(k);
+      k++;
+    
+/*      
+      display_str("Request preset 0", OUT);
+      send_preset_request(0x01);
+*/
+/*
       display_str("Spooky Melody", OUT);
 
       sc3.create_preset(preset16);
       send_receive_bt(sc3);
       send_receive_bt(sc_setpreset7f);
-
+*/
    }
    if (M5.BtnC.wasReleased()) {
       display_str("Request preset 0", OUT);
 
-      send_preset_request(0);
+      send_preset_request(0x7f);
    }  
 
    if (MIDIUSBH) {
@@ -452,13 +472,68 @@ void loop() {
    
    if (SerialBT.available()) {
       scr.get_data();
+      //scr.dump();
       scr.parse_data();
-      scr.dump();
 
-      // Not an ACK
-//      if (!(scr.buf[0][20]==0x04 && scr.buf[0][6] == 23)) {
-         snprintf(instr, sizeof(instr), "Unknown %2X %2X", scr.buf[0][20], scr.buf[0][21]);
-         display_str(instr, IN);
-//      }
+      for (i=0; i<scr.num_messages; i++) {
+         snprintf(a_str,sizeof(a_str)-1,"Cmd %d Sub-cmd %d  Start %d  End %d", scr.messages[i].cmd, scr.messages[i].sub_cmd, scr.messages[i].start_pos, scr.messages[i].end_pos);
+         Serial.println(a_str);
+
+         cmd = scr.messages[i].cmd;
+         sub_cmd = scr.messages[i].sub_cmd;
+         if (cmd == 0x03 && sub_cmd == 0x37) {
+             scr.get_effect_parameter(i, a_str, &param, &val);
+
+             Serial.print(a_str);
+             Serial.print(" ");
+             Serial.print(param);
+             Serial.print(" ");
+             Serial.println(val);
+             
+             snprintf(instr, sizeof(instr), "%s %d %0.2f", a_str, param, val);
+             display_str(instr, IN);             
+         }
+         else if (cmd == 0x03 && sub_cmd == 0x06) {
+             scr.get_effect_change(i, a_str, b_str);
+
+             Serial.print(a_str);
+             Serial.print(" ");
+             Serial.println(b_str);
+             snprintf(instr, sizeof(instr), "-> %s", b_str);
+             display_str(instr, IN);
+         
+         }
+         else if (cmd == 0x03 && sub_cmd == 0x01) {
+             scr.get_preset(i, &preset);
+
+             Serial.println(preset.preset_num);
+             Serial.println(preset.UUID);
+             Serial.println(preset.Name);
+             Serial.println(preset.Version);
+             Serial.println(preset.Description);
+             Serial.println(preset.Icon);
+             Serial.println(preset.BPM);
+
+
+             for (j=0; j<7; j++) {
+                Serial.print(preset.effects[j].EffectName);
+                if (preset.effects[j].OnOff) Serial.println("On"); else Serial.println("Off");   
+                for (i=0; i<preset.effects[j].NumParameters; i++) {
+                   Serial.print("   ");
+                   Serial.print(preset.effects[j].Parameters[i]);
+                }
+                Serial.println();
+             }
+
+   
+             snprintf(instr, sizeof(instr), "Preset: %s", preset.Name);
+             display_str(instr, IN);
+         
+         }
+         else {
+            snprintf(instr, sizeof(instr), "Command %2X %2X", scr.messages[i].cmd, scr.messages[i].sub_cmd);
+            display_str(instr, IN);
+         }
+      }
    }
 }
