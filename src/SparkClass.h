@@ -11,6 +11,7 @@
 #define MAX_MESSAGES 50
 
 #define STR_LEN 40
+
 typedef struct  {
    int start_filler;
    int preset_num;
@@ -24,7 +25,7 @@ typedef struct  {
       char EffectName[STR_LEN];
       bool OnOff;
       int NumParameters;
-      float Parameters[8];
+      float Parameters[10];
    } effects[7];
    uint8_t end_filler;
 } SparkPreset;
@@ -55,7 +56,7 @@ class SparkClass
       void create_preset (SparkPreset& preset);
       
       // incoming from Spark      
-      void get_data();
+      int get_data();
       void parse_data();
 
       void get_effect_parameter (int index, char *pedal, int *param, float *val);
@@ -70,8 +71,8 @@ class SparkClass
       // public variables
       byte buf[NUM_BLKS][BLK_SIZE];
 
-      int  last_pos;    // index of last byte written in buf
-      int  last_block;  // index of last block being used
+      int last_pos;    // index of last byte written in buf
+      int last_block;  // index of last block being used
 
       MsgEntry messages[MAX_MESSAGES];
       int num_messages;
@@ -92,8 +93,10 @@ class SparkClass
       byte read_byte();
       
       void get_block(int block);
-          
-      int  data_pos;    // logical index of the actual data - ignores the 7bit expansion in the data block
+
+      int seq;
+      
+      int data_pos;    // logical index of the actual data - ignores the 7bit expansion in the data block
       int chunk_offset;
       boolean multi;
       int cmd;

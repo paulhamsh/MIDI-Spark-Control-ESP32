@@ -9,6 +9,8 @@ SparkClass::SparkClass()
 
    data_pos = -1;
    multi = false;
+
+   seq = 10;
 }
 
 SparkClass::~SparkClass()
@@ -164,6 +166,9 @@ void SparkClass::start_message(int a_cmd, int a_sub_cmd, boolean a_multi)
    last_block = 0;
    data_pos = 0;
 
+   seq++;
+   if (seq >= 255) seq = 0;
+
    memset(buf, 0, sizeof(buf));
 }
 
@@ -213,7 +218,7 @@ void SparkClass::end_message()
        // add chunk header
        buf[i][16] = 0xf0;
        buf[i][17] = 0x01;
-       buf[i][18] = 0x3a;  // sequence number - this is a random one
+       buf[i][18] = seq;  // sequence number
        buf[i][19] = 0x15;  // unknown what this is
        buf[i][20] = cmd;       
        buf[i][21] = sub_cmd;
@@ -414,9 +419,19 @@ void SparkClass::create_preset (SparkPreset &preset)
 // 
 // Store in the SparkClass buffer to save data copying
 
+
 int read_bt() {
-  while (!SerialBT.available()) delay(10);
-  return SerialBT.read();
+   int a;
+   while (!SerialBT.available()) delay(1);
+   a= SerialBT.read();
+
+if (a==0xf0) Serial.println("");
+Serial.print(" ");
+if (a<16) Serial.print("0");
+Serial.print(a, HEX);
+Serial.print(" ");
+  
+   return a;
 }
 
 void SparkClass::get_block(int block)
@@ -426,15 +441,15 @@ void SparkClass::get_block(int block)
    int i, len; 
 
    // look for the 0x01fe start signature
-   
    started = false;
    r1 = read_bt();
    while (!started) {
       r2 = read_bt();
       if (r1==0x01 && r2 == 0xfe)
          started = true;
-      else
+      else {
          r1 = r2;
+      }
    };
 
    buf[block][0]=r1;
@@ -450,15 +465,17 @@ void SparkClass::get_block(int block)
       while (true);
    };
       
-   for (i=7; i<len; i++)
+   for (i=7; i<len; i++) {
       buf[block][i] = read_bt();
+      if (buf[block][i] == 0xfe) Serial.println("OH - 0xFE IN MIDDLE OF BLOCK :-(");
+   }
 
   last_block = 0;
   last_pos = i-1;
 }
   
 
-void SparkClass::get_data()
+int SparkClass::get_data()
 {
 
    int block;
@@ -467,6 +484,7 @@ void SparkClass::get_data()
    int blk_len; 
    int num_chunks, this_chunk;
    int seq, cmd, sub_cmd;
+   int a_cmd, a_sub_cmd;
    int directn;
 
    int pos;
@@ -478,7 +496,7 @@ void SparkClass::get_data()
       if (block >= NUM_BLKS) {
          Serial.print(block);
          Serial.println(" BLOCKS SO FAR - THIS DATA IS TOO BIG FOR MY NUM_BLKS");
-         break;
+         return -1;
       }
       get_block(block);
       blk_len = buf[block][6];
@@ -512,9 +530,12 @@ void SparkClass::get_data()
             if (this_chunk + 1 == num_chunks)
                is_last_block = true;
          }
-      if (directn == 0x41) 
+      if (directn == 0x41) {
          if (blk_len < 0x6a)
             is_last_block = true;
+            
+// THIS BIT NEEDS TO BE REPLACED
+/*
          else {
             // this is from Spark so chunk header could be anywhere
             // so search from the end
@@ -526,9 +547,33 @@ void SparkClass::get_data()
             if (this_chunk + 1 == num_chunks)
                is_last_block = true;
          }
+      }
+*/            
+         else if (buf[block][blk_len-1] == 0xf7) {
+            // this is from Spark so chunk header could be anywhere
+            // so search from the end
+            // there must be one within the block and it is outside the 8bit byte so the search is ok
+
+            for (pos = 0x6a-2; pos >= 22 && !(buf[block][pos] == 0xf0 && buf[block][pos+1] == 0x01); pos--);
+
+            a_cmd = buf[block][pos+4];
+            a_sub_cmd = buf[block][pos+5];
+
+            if (a_cmd == 0x03 && a_sub_cmd == 0x01) {
+               num_chunks = buf[block][pos+7];
+               this_chunk = buf[block][pos+8];
+               if (this_chunk + 1 == num_chunks)
+                  is_last_block = true;
+            }
+            else
+               is_last_block = true;
+         }
+      }
+
       last_block = block;
       block++;
    }
+   return 0;
 }
 
 #define BLK(x) (int((x)/90))
@@ -556,9 +601,7 @@ void SparkClass::parse_data() {
          num = buf[BLK(pos+7)][BLK_POS(pos+7)];
       
          pos += 39 * (num-1);
-//         blk = BLK(pos);
-//         blk_size = buf[blk][6];
-      
+     
          chunk_len = buf[BLK(pos+6+3)][BLK_POS(pos+6+3)];
          end_pos = pos + 10 + int ((chunk_len+2)/7) + chunk_len;
       }
@@ -594,34 +637,30 @@ byte SparkClass::read_byte()
 
    int blk, multi_bytes, temp_pos, slice_pos, byte_pos, bit_pos, pos, chunk, chunk_data_size;
    int bits, dat;
-   
-   chunk_data_size = multi ? 25: 1000; // kludge until I refactor all of this
-   chunk = int(data_pos / chunk_data_size);
-   multi_bytes = multi ? 3 : 0;
-      
+
+
    // work out where to place the data byte and where the 8th bit should go
-   temp_pos = (data_pos % chunk_data_size) + multi_bytes;
-   slice_pos = 8 * int (temp_pos / 7);
-   byte_pos = temp_pos % 7;
-   bit_pos = scr.chunk_offset + chunk*39 + slice_pos + 6;
-   pos = scr.chunk_offset + chunk*39 + byte_pos + slice_pos + 7;
-      
-   
+   if (multi) {
+      chunk = int(data_pos / 25);
+      temp_pos = (data_pos % 25) + 3; //skip the 3 start bytes
+      slice_pos = 8 * int (temp_pos / 7);
+      byte_pos = temp_pos % 7;
+      bit_pos = scr.chunk_offset + 39*chunk + slice_pos + 6;
+      pos = scr.chunk_offset + 39*chunk + byte_pos + slice_pos + 7;
+   }
+   else {
+      temp_pos = data_pos;
+      slice_pos = 8 * int (temp_pos / 7);
+      byte_pos = temp_pos % 7;
+      bit_pos = scr.chunk_offset + slice_pos + 6;
+      pos = scr.chunk_offset + byte_pos + slice_pos + 7;
+   }
    bits = buf[BLK(bit_pos)][BLK_POS(bit_pos)];
    dat = buf[BLK(pos)][BLK_POS(pos)];
    
    if (bits &  (1<<byte_pos))
       dat |= 0x80;
 
-/*   
-   Serial.print(pos);
-   Serial.print(" ");
-   Serial.print(bit_pos);
-   Serial.print(" ");
-   Serial.print(dat, HEX);
-   Serial.print(" ");
-   Serial.println(bits, BIN);  
-*/   
    data_pos++;
    return dat;
 }   
