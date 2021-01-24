@@ -1,10 +1,10 @@
-#define MIDI_STR_LEN 30
+#define MIDI_STR_LEN 40
 
 typedef struct {
    int note;
-   char command[MIDI_STR_LEN];
-   char param1[MIDI_STR_LEN];
-   char param2[MIDI_STR_LEN];
+   char command[MIDI_STR_LEN+1];
+   char param1[MIDI_STR_LEN+1];
+   char param2[MIDI_STR_LEN+1];
    int value;   
 } MIDIMap;
 

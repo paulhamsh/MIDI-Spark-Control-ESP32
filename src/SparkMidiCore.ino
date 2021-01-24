@@ -39,16 +39,16 @@ SparkPreset preset;
 
 // Display vars
 #define DISP_LEN 50
-char outstr[DISP_LEN];
-char instr[DISP_LEN];
-char statstr[DISP_LEN];
-char midistr[DISP_LEN];
+char outstr[DISP_LEN+1];
+char instr[DISP_LEN+1];
+char statstr[DISP_LEN+1];
+char midistr[DISP_LEN+1];
 
 void display_background(const char *title, int y, int height)
 {
    int x_pos;
 
-   x_pos = 160 - 3 * strlen(title);
+   x_pos = 160 - 3 * strnlen(title, DISP_LEN-1);
 //   M5.Lcd.fillRoundRect(0, y, 320, height, 4, BACKGROUND);
    M5.Lcd.drawRoundRect(0, y, 320, height, 4, TEXT_COLOUR);
    M5.Lcd.setCursor(x_pos, y);
@@ -74,12 +74,19 @@ void do_backgrounds()
 
 void display_str(const char *a_str, int y)
 {
-   char b_str[30];
+   char b_str[DISP_LEN+1];
 
    strncpy(b_str, a_str, 25);
-   strncat(b_str, "                         ", 25-strlen(a_str));
+   if (strnlen(a_str,DISP_LEN-1) < 25) strncat(b_str, "                         ", 25-strnlen(a_str,DISP_LEN-1));
    M5.Lcd.setCursor(8,y+8);
    M5.Lcd.print(b_str);
+
+
+   if (y == STATUS)  Serial.print("STATUS: ");
+   else if (y==MIDI) Serial.print("MIDI:   ");
+   else if (y==IN)   Serial.print("IN:     ");
+   else if (y==OUT)  Serial.print("OUT:    ");
+   Serial.println(b_str);
 }
 
 
@@ -121,12 +128,10 @@ void send_bt(SparkClass& spark_class)
    // if multiple blocks then send all but the last - the for loop should only run if last_block > 0
    for (i = 0; i < spark_class.last_block; i++) {
       SerialBT.write(spark_class.buf[i], BLK_SIZE);
-//      delay(200);   
    }
       
    // and send the last one      
    SerialBT.write(spark_class.buf[spark_class.last_block], spark_class.last_pos+1);
-//   delay(200);
 }
 
 
@@ -158,29 +163,36 @@ void send_preset_request(int preset)
    SerialBT.write(req, sizeof(req));      
 }
 
-
-
-/* No longer needed as async receive
- *  
- *  */
-
-void send_receive_bt2(SparkClass& spark_class)
+void expect_ack()
 {
+   int ret;
+   int parse_ret;
    int i;
-   int rec;
 
-   // if multiple blocks then send all but the last - the for loop should only run if last_block > 0
-   for (i = 0; i < spark_class.last_block; i++) {
-      SerialBT.write(spark_class.buf[i], BLK_SIZE);
-      // read the ACK
-      scr.get_data();
-   }
-      
-   // and send the last one      
-   SerialBT.write(spark_class.buf[spark_class.last_block], spark_class.last_pos+1); 
-   // read the ACK
-   scr.get_data();
+   // this is complex because it is checking the data received - you really only
+   // need to do scr.get_data()
+   
+   display_str("Waiting for Ack", STATUS); 
+   ret = scr.get_data();
+   if (ret >= 0) {
+      display_str("Got responses", STATUS); 
+      parse_ret = scr.parse_data();
+      if (parse_ret < 0) 
+         display_str("Parse failed", STATUS);
+      else
+         if (scr.num_messages > 0)
+            for (i = 0; i<scr.num_messages; i++)
+               if (scr.messages[i].cmd == 0x04)
+                  display_str("Got ack", STATUS);
+               else {
+                  snprintf(statstr, DISP_LEN-1, "Got something %2.2X %2.2X", scr.messages[i].cmd, scr.messages[i].sub_cmd);
+                  display_str(statstr, STATUS);   
+               }
+   }     
+   else
+      display_str("Bad block received", STATUS); 
 }
+
 
 void send_receive_bt(SparkClass& spark_class)
 {
@@ -191,17 +203,15 @@ void send_receive_bt(SparkClass& spark_class)
    for (i = 0; i < spark_class.last_block; i++) {
       SerialBT.write(spark_class.buf[i], BLK_SIZE);
       // read the ACK
-      delay(100);
-      while (SerialBT.available()) SerialBT.read(); 
+      expect_ack();
    }
       
    // and send the last one      
    SerialBT.write(spark_class.buf[spark_class.last_block], spark_class.last_pos+1); 
-   
    // read the ACK
-   delay(100);
-   while (SerialBT.available()) SerialBT.read(); 
+   expect_ack();
 }
+
 
 // ------------------------------------------------------------------------------------------
 // MIDI routines
@@ -216,16 +226,17 @@ void start_midi() {
 int get_current_index(char *type) {
    int i;
 
-   if      (!strcmp(type, "Gate"))   i = 0;
-   else if (!strcmp(type, "Comp"))   i = 1;
-   else if (!strcmp(type, "Drive"))  i = 2;           
-   else if (!strcmp(type, "Amp"))    i = 3;
-   else if (!strcmp(type, "Mod"))    i = 4;
-   else if (!strcmp(type, "Delay"))  i = 5;
-   else if (!strcmp(type, "Reverb")) i = 6;
+   if      (!strncmp(type, "Gate", MIDI_STR_LEN-1))   i = 0;
+   else if (!strncmp(type, "Comp", MIDI_STR_LEN-1))   i = 1;
+   else if (!strncmp(type, "Drive", MIDI_STR_LEN-1))  i = 2;           
+   else if (!strncmp(type, "Amp", MIDI_STR_LEN-1))    i = 3;
+   else if (!strncmp(type, "Mod", MIDI_STR_LEN-1))    i = 4;
+   else if (!strncmp(type, "Delay", MIDI_STR_LEN-1))  i = 5;
+   else if (!strncmp(type, "Reverb", MIDI_STR_LEN-1)) i = 6;
    else i = -1;
    return i;
 }
+
 void midi_event() {
    uint8_t receive_buf[MIDI_EVENT_PACKET_SIZE];
    uint16_t received;
@@ -261,7 +272,7 @@ void midi_event() {
 
       count += 4;
 
-      snprintf(midistr, sizeof(midistr), "%02Xh %d %d", miditype, dat1, dat2);
+      snprintf(midistr, DISP_LEN-1, "%02Xh %d %d", miditype, dat1, dat2);
       display_str(midistr, MIDI);
 
       /*
@@ -310,38 +321,35 @@ void midi_event() {
             }
 
          if (found_midi_map) {   
-            if (!strcmp(NoteOn[i].command, "HwPreset")) {
+            if (!strncmp(NoteOn[i].command, "HwPreset", MIDI_STR_LEN-1)) {
                sc2.change_hardware_preset(NoteOn[i].value);
                send_receive_bt(sc2);
 
-               snprintf(outstr, sizeof(outstr), "Hardware preset %d", NoteOn[i].value);
+               // the effect list details are updated in the bluetooth receiver code - this request triggers it
+               send_preset_request(NoteOn[i].value);
+               
+               snprintf(outstr, DISP_LEN-1, "Hardware preset %d", NoteOn[i].value);
                display_str(outstr, OUT);
-
-               // need to get the preset details now to update our local info
-               // need to get the preset details now to update our local info
-               // need to get the preset details now to update our local info
-               // need to get the preset details now to update our local info
-               // need to get the preset details now to update our local info
-               // need to get the preset details now to update our local info
-               // need to get the preset details now to update our local info
             }
-            else if (!strcmp(NoteOn[i].command, "EfectOnOff")) {
+            else if (!strncmp(NoteOn[i].command, "EfectOnOff", MIDI_STR_LEN-1)) {
                // find the current[] effect of this type
                curr_ind = get_current_index(NoteOn[i].param1);
                if (curr_ind >= 0) {
                   sc2.turn_effect_onoff(current_effects[curr_ind], NoteOn[i].param2);
-                  send_receive_bt(sc2);
+                  // this is interesting - there is an ACK if the effect is actually CHANGED, but if the same state
+                  // is sent twice in a row there is no ACK - so not requesting to wait for one here
+                  send_bt(sc2);
 
-                  snprintf(outstr, sizeof(outstr), "%s %s", current_effects[curr_ind], NoteOn[i].param2);
+                  snprintf(outstr, DISP_LEN-1, "%s %s", current_effects[curr_ind], NoteOn[i].param2);
                   display_str(outstr, OUT);
               } 
             }
-            else if (!strcmp(NoteOn[i].command, "ChangePreset")) {
+            else if (!strncmp(NoteOn[i].command, "ChangePreset", MIDI_STR_LEN-1)) {
                // find the current[] effect of this type
                found_preset = false;
 
                for (j = 0; j < num_presets; j++) {
-                  if (!strcmp(presets[j]->Name, NoteOn[i].param1)) {
+                  if (!strncmp(presets[j]->Name, NoteOn[i].param1, MIDI_STR_LEN-1)) {
                      found_preset = true;
                      break;
                   }
@@ -352,14 +360,13 @@ void midi_event() {
                   // and send the select hardware 7f message too
                   send_receive_bt(sc_setpreset7f);
                   
-                  snprintf(outstr, sizeof(outstr), "Preset %s", presets[j]->Name);
+                  snprintf(outstr, DISP_LEN-1, "Preset %s", presets[j]->Name);
                   display_str(outstr, OUT);
                                    
-                  for (k=0; k<7; k++) strcpy(current_effects[k], presets[j]->effects[k].EffectName);
-                  for (k=0; k<7; k++) Serial.println(current_effects[k]);
+                  for (k=0; k<7; k++) strncpy(current_effects[k], presets[j]->effects[k].EffectName, STR_LEN-1);
                }
             }
-            else if (!strcmp(NoteOn[i].command, "ChangeEffect")) {
+            else if (!strncmp(NoteOn[i].command, "ChangeEffect", MIDI_STR_LEN-1)) {
                // find the current[] effect of this type
                curr_ind = get_current_index(NoteOn[i].param1);
                if (curr_ind >= 0) {
@@ -367,9 +374,9 @@ void midi_event() {
                   send_receive_bt(sc2);
  
                   // update our current[] map
-                  strcpy(current_effects[curr_ind], NoteOn[i].param2);
+                  strncpy(current_effects[curr_ind], NoteOn[i].param2, STR_LEN-1);
 
-                  snprintf(outstr, sizeof(outstr), "%s -> %s", NoteOn[i].param1, NoteOn[i].param2);
+                  snprintf(outstr, DISP_LEN-1, "%s -> %s", NoteOn[i].param1, NoteOn[i].param2);
                   display_str(outstr, OUT);
                } 
             }
@@ -383,13 +390,13 @@ void midi_event() {
                break;
             }
          if (found_midi_map) {
-            if (!strcmp(CC[i].command, "ChangeParam")) {
+            if (!strncmp(CC[i].command, "ChangeParam", MIDI_STR_LEN-1)) {
                curr_ind = get_current_index(CC[i].param1);
                if (curr_ind >= 0) {
                   sc2.change_effect_parameter(current_effects[curr_ind], CC[i].value, float(dat2) / 127);
                   send_bt(sc2);
 
-                  snprintf(outstr, sizeof(outstr), "%s %d %0.3f", current_effects[curr_ind], CC[i].value, float(dat2) / 127);
+                  snprintf(outstr, DISP_LEN-1, "%s %d %0.2f", current_effects[curr_ind], CC[i].value, float(dat2) / 127);
                   display_str(outstr, OUT);
                }
             }  
@@ -403,11 +410,13 @@ void midi_event() {
 // ------------------------------------------------------------------------------------------
 
 int i, j, k;
+int ret, parse_ret;
 int param;
 float val;
 int cmd, sub_cmd;
-char a_str[STR_LEN];
-char b_str[STR_LEN];
+char a_str[STR_LEN+1];
+char b_str[STR_LEN+1];
+int pres[]{0,1,2,3,0x7f,0x80,0x81,0x82,0x83};
 
 void setup() {
    M5.begin();
@@ -429,7 +438,7 @@ void setup() {
    // set up the change to 7f message for when we send a full preset
    sc_setpreset7f.change_hardware_preset(0x7f);
 
-   k=0x7f;
+   k = 0;
  
 }
 
@@ -438,30 +447,21 @@ void loop() {
    Usb.Task();
       
    if (M5.BtnA.wasReleased()) {
-      display_str("Hardware preset 0", OUT);
-      sc2.change_hardware_preset(0);
-      send_bt(sc2);
-  } 
-   if (M5.BtnB.wasReleased()) {
-      Serial.print("Requesting ");
-      Serial.println(k, HEX);
-      send_preset_request(k);
-      k++;
-    
-/*      
-      display_str("Request preset 0", OUT);
-      send_preset_request(0x01);
-*/
-/*
-      display_str("Spooky Melody", OUT);
-
+      display_str("Spooky Melody to 0x7f", OUT);
+      preset16.preset_num=0x7f;
       sc3.create_preset(preset16);
       send_receive_bt(sc3);
-      send_receive_bt(sc_setpreset7f);
-*/
+      send_receive_bt(sc_setpreset7f);      
    }
+    
+   if (M5.BtnB.wasReleased()) {
+      send_preset_request(pres[k]);
+      k++;
+      if (k>8) k=0;
+   }
+   
    if (M5.BtnC.wasReleased()) {
-      display_str("Request preset 0", OUT);
+      display_str("Request preset 0x7f", OUT);
 
       send_preset_request(0x7f);
    }  
@@ -471,69 +471,53 @@ void loop() {
    }
    
    if (SerialBT.available()) {
-      scr.get_data();
-      //scr.dump();
-      scr.parse_data();
-
-      for (i=0; i<scr.num_messages; i++) {
-         snprintf(a_str,sizeof(a_str)-1,"Cmd %d Sub-cmd %d  Start %d  End %d", scr.messages[i].cmd, scr.messages[i].sub_cmd, scr.messages[i].start_pos, scr.messages[i].end_pos);
-         Serial.println(a_str);
-
-         cmd = scr.messages[i].cmd;
-         sub_cmd = scr.messages[i].sub_cmd;
-         if (cmd == 0x03 && sub_cmd == 0x37) {
-             scr.get_effect_parameter(i, a_str, &param, &val);
-
-             Serial.print(a_str);
-             Serial.print(" ");
-             Serial.print(param);
-             Serial.print(" ");
-             Serial.println(val);
+      display_str("Getting data from Spark", STATUS);  
+      ret = scr.get_data();
+      if (ret < 0) {
+         snprintf(statstr, DISP_LEN-1, "Corrupted data %d", ret);
+         display_str(statstr, STATUS); 
+      }
+      if (ret >=0 ) {
+         display_str("Parsing the data", STATUS);       
+         parse_ret = scr.parse_data();
+         if (parse_ret >= 0) { 
+            if (scr.num_messages > 0) {
+               snprintf(statstr, DISP_LEN-1, "Processing %d messages", scr.num_messages);
+               display_str(statstr, STATUS);   
+            }
+            for (i=0; i<scr.num_messages; i++) {
+               cmd = scr.messages[i].cmd;
+               sub_cmd = scr.messages[i].sub_cmd;
+               if (cmd == 0x03 && sub_cmd == 0x37) {
+                  scr.get_effect_parameter(i, a_str, &param, &val);
              
-             snprintf(instr, sizeof(instr), "%s %d %0.2f", a_str, param, val);
-             display_str(instr, IN);             
-         }
-         else if (cmd == 0x03 && sub_cmd == 0x06) {
-             scr.get_effect_change(i, a_str, b_str);
+                  snprintf(instr, DISP_LEN-1, "%s %d %0.2f", a_str, param, val);
+                  display_str(instr, IN);             
+               }
+               else if (cmd == 0x03 && sub_cmd == 0x06) {
+                  // it can only be an amp change if received from the Spark
+                  scr.get_effect_change(i, a_str, b_str);
+                  strncpy(current_effects[3], b_str, STR_LEN-1);
 
-             Serial.print(a_str);
-             Serial.print(" ");
-             Serial.println(b_str);
-             snprintf(instr, sizeof(instr), "-> %s", b_str);
-             display_str(instr, IN);
+                  snprintf(instr, DISP_LEN-1, "-> %s", b_str);
+                  display_str(instr, IN);
          
+               }
+               else if (cmd == 0x03 && sub_cmd == 0x01) {
+               scr.get_preset(i, &preset);
+               // update the current effects list
+               for (j=0; j<7; j++) strncpy(current_effects[j], preset.effects[j].EffectName, STR_LEN-1);
+
+               snprintf(instr, DISP_LEN-1, "Preset: %s", preset.Name);
+               display_str(instr, IN);
+               }
+               else {
+                  snprintf(instr, DISP_LEN-1, "Command %2.2X %2.2X", scr.messages[i].cmd, scr.messages[i].sub_cmd);
+                  display_str(instr, IN);
+               }
+            }
          }
-         else if (cmd == 0x03 && sub_cmd == 0x01) {
-             scr.get_preset(i, &preset);
-
-             Serial.println(preset.preset_num);
-             Serial.println(preset.UUID);
-             Serial.println(preset.Name);
-             Serial.println(preset.Version);
-             Serial.println(preset.Description);
-             Serial.println(preset.Icon);
-             Serial.println(preset.BPM);
-
-
-             for (j=0; j<7; j++) {
-                Serial.print(preset.effects[j].EffectName);
-                if (preset.effects[j].OnOff) Serial.println("On"); else Serial.println("Off");   
-                for (i=0; i<preset.effects[j].NumParameters; i++) {
-                   Serial.print("   ");
-                   Serial.print(preset.effects[j].Parameters[i]);
-                }
-                Serial.println();
-             }
-
-   
-             snprintf(instr, sizeof(instr), "Preset: %s", preset.Name);
-             display_str(instr, IN);
-         
-         }
-         else {
-            snprintf(instr, sizeof(instr), "Command %2X %2X", scr.messages[i].cmd, scr.messages[i].sub_cmd);
-            display_str(instr, IN);
-         }
+         display_str("Done", STATUS);
       }
    }
 }

@@ -218,28 +218,28 @@ SparkPreset *presets[]{&preset0,  &preset1,  &preset2,  &preset3,  &preset4,  &p
                        &preset10, &preset11, &preset12, &preset13, &preset14, &preset15, &preset16, &preset17, &preset18, &preset19, 
                        &preset20, &preset21, &preset22, &preset23};
 
-char spark_noisegates[][STR_LEN]{"bias.noisegate"};
+char spark_noisegates[][STR_LEN+1]{"bias.noisegate"};
         
-char spark_compressors[][STR_LEN]{"LA2AComp", "BlueComp", "Compressor", "BassComp", "BBEOpticalComp"};
+char spark_compressors[][STR_LEN+1]{"LA2AComp", "BlueComp", "Compressor", "BassComp", "BBEOpticalComp"};
 
-char spark_drives[][STR_LEN]{"Booster", "DistortionTS9", "Overdrive", "Fuzz", "ProCoRat", "BassBigMuff",
+char spark_drives[][STR_LEN+1]{"Booster", "DistortionTS9", "Overdrive", "Fuzz", "ProCoRat", "BassBigMuff",
                      "GuitarMuff", "MaestroBassmaster", "SABdriver"};
                      
-char spark_amps[][STR_LEN]{"RolandJC120", "Twin", "ADClean", "94MatchDCV2", "Bassman", "AC Boost", "Checkmate",
+char spark_amps[][STR_LEN+1]{"RolandJC120", "Twin", "ADClean", "94MatchDCV2", "Bassman", "AC Boost", "Checkmate",
                      "TwoStoneSP50", "Deluxe65", "Plexi", "OverDrivenJM45", "OverDrivenLuxVerb",
                      "Bogner", "OrangeAD30","AmericanHighGain", "SLO100", "YJM100", "Rectifier",
                      "EVH", "SwitchAxeLead", "Invader", "BE101", "Acoustic", "AcousticAmpV2", "FatAcousticV2",
                      "FlatAcoustic", "GK800", "Sunny3000", "W600", "Hammer500"};
 
-char spark_modulations[][STR_LEN]{"Tremolo", "ChorusAnalog", "Flanger", "Phaser", "Vibrato01", "UniVibe",
+char spark_modulations[][STR_LEN+1]{"Tremolo", "ChorusAnalog", "Flanger", "Phaser", "Vibrato01", "UniVibe",
                      "Cloner", "MiniVibe", "Tremolator", "TremoloSquare"};
                      
-char spark_delays[][STR_LEN]{"DelayMono", "DelayEchoFilt", "VintageDelay", "DelayReverse",
+char spark_delays[][STR_LEN+1]{"DelayMono", "DelayEchoFilt", "VintageDelay", "DelayReverse",
                      "DelayMultiHead", "DelayRe201"};
                      
-char spark_reverbs[][STR_LEN]{"bias.reverb"};  
+char spark_reverbs[][STR_LEN+1]{"bias.reverb"};  
   
-char current_effects[7][STR_LEN]{/* Noisegate  */ "bias.noisegate", 
+char current_effects[7][STR_LEN+1]{/* Noisegate  */ "bias.noisegate", 
                                  /* Compressor */ "LA2AComp",
                                  /* Drive      */ "Booster",
                                  /* Amp        */ "RolandJC120", 
