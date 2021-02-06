@@ -30,7 +30,9 @@ Whilst this is focussed on MIDI the underlying code and class can be triggered b
 
 M5 Board installations as per M5 instructions - for Arduino: https://docs.m5stack.com/#/en/arduino/arduino_development    
 USB Host: https://github.com/felis/USB_Host_Shield_2.0    
-Use the latest version of the USB Host Shield library - earlier ones seem not to work with some MIDI devices (Novation Launchkey 25 as an example)    
+Use the latest version of the USB Host Shield library - earlier ones seem not to work with some MIDI devices (Novation Launchkey 25 as an example)   
+I also installed ArduinoJson from the Arduino library manager, although the code doesn't use it - I may remove it at some point. It was used to read a
+JSON formatted preset but now I am using an internal C++ structure instead. To remove it comment out the ```#include <ArduinoJson.h>``` and ```void create_preset_json (const char *a_preset);``` in SparkClass.h and comment out all of ```void SparkClass::create_preset_json (const char *a_preset)``` in SparkClass.ino
 
 ## API
 
